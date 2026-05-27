@@ -3,7 +3,7 @@
 互動式視覺化 Streamlit app，探索台灣鐵路 2005–2026 年的每日進出站人次。
 從三節連假的城鄉遷徙，到 COVID-19 對各車站的衝擊，用圖表說故事。
 
-**[➡ 前往 App（部署後補上連結）](#)**
+**[➡ 前往 App](https://weareantsontherail.streamlit.app/)**
 
 ---
 
