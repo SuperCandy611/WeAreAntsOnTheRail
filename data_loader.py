@@ -263,16 +263,23 @@ def get_daily_national(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Color helpers ──────────────────────────────────────────────────────────────
 
-def net_flow_to_rgba(series: pd.Series, alpha: int = 200, quantile: float = 0.95) -> list[list[int]]:
+def net_flow_to_rgba(series: pd.Series, alpha: int = 200, quantile: float = 0.95,
+                     max_abs_override: float | None = None) -> list[list[int]]:
     """
     Map net_flow → RGBA list.
     net_flow = 進站 - 出站
       Positive (進站 > 出站) → 人從這裡出發，城市流出 → RED
       Near zero              → 接近平衡             → WHITE
       Negative (出站 > 進站) → 人抵達此地，城市流入 → BLUE
+
+    Pass max_abs_override=1.0 when series is already a ratio (−1…+1) to avoid
+    the floor clamp suppressing colours.
     """
-    max_abs = float(series.abs().quantile(quantile))
-    max_abs = max(max_abs, 1.0)
+    if max_abs_override is not None:
+        max_abs = max_abs_override
+    else:
+        max_abs = float(series.abs().quantile(quantile))
+        max_abs = max(max_abs, 1.0)
 
     colors = []
     for val in series:

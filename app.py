@@ -151,7 +151,7 @@ if page == "🗺  節假日流動地圖":
         day_data["net_flow"] / total_vol.replace(0, np.nan)
     ).fillna(0)
     day_data["flow_ratio_pct"] = (day_data["flow_ratio"] * 100).round(1)
-    day_data["color"] = net_flow_to_rgba(day_data["flow_ratio"])
+    day_data["color"] = net_flow_to_rgba(day_data["flow_ratio"], max_abs_override=1.0)
     day_data["radius"] = radius_scale(total_vol, min_r=500, max_r=8000).values
 
     # Summary metrics
