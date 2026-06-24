@@ -145,9 +145,13 @@ if page == "🗺  節假日流動地圖":
         st.warning("此日期無資料")
         st.stop()
 
-    # Color and radius
-    day_data["color"] = net_flow_to_rgba(day_data["net_flow"])
+    # Color = net flow ratio (淨流量 / 總人次)；radius = 總人次大小
     total_vol = day_data["in_count"] + day_data["out_count"]
+    day_data["flow_ratio"] = (
+        day_data["net_flow"] / total_vol.replace(0, np.nan)
+    ).fillna(0)
+    day_data["flow_ratio_pct"] = (day_data["flow_ratio"] * 100).round(1)
+    day_data["color"] = net_flow_to_rgba(day_data["flow_ratio"])
     day_data["radius"] = radius_scale(total_vol, min_r=500, max_r=8000).values
 
     # Summary metrics
@@ -186,7 +190,7 @@ if page == "🗺  節假日流動地圖":
                 "<b style='font-size:1.1em'>{stationName}</b>"
                 " <span style='color:#aaa'>({city})</span><br/>"
                 "進站：<b>{in_count}</b> &nbsp; 出站：<b>{out_count}</b><br/>"
-                "淨流量：<b>{net_flow}</b>"
+                "淨流量：<b>{net_flow}</b> &nbsp; 佔比：<b>{flow_ratio_pct}%</b>"
             ),
             "style": {
                 "background": "rgba(10,10,30,0.9)",
@@ -208,7 +212,7 @@ if page == "🗺  節假日流動地圖":
         <span><span class="legend-dot" style="background:#DC3C3C"></span>🔴 淨流出（進站多，人從此出發）</span>
         <span><span class="legend-dot" style="background:#DCDCDC"></span>⚪ 接近平衡</span>
         <span><span class="legend-dot" style="background:#3C3CDC"></span>🔵 淨流入（出站多，人抵達此地）</span>
-        <span style="margin-left:auto;color:#666">泡泡大小 = 總人次 ｜ 期間：{period_label}</span>
+        <span style="margin-left:auto;color:#666">泡泡大小 = 總人次 ｜ 顏色深淺 = 淨流量佔比（%） ｜ 期間：{period_label}</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -222,11 +226,25 @@ if page == "🗺  節假日流動地圖":
         st.markdown("#### 🔴 淨流出前 10（出發地：進多出少）")
         top_out = day_data.nlargest(10, "net_flow")[tbl_cols].rename(columns=tbl_rename)
         st.dataframe(top_out, hide_index=True, width="stretch")
+        st.download_button(
+            "⬇ 下載 CSV",
+            top_out.to_csv(index=False, encoding="utf-8-sig"),
+            file_name=f"{year}{holiday_type}_淨流出前10.csv",
+            mime="text/csv",
+            key="dl_out",
+        )
 
     with col_in:
         st.markdown("#### 🔵 淨流入前 10（目的地：出多進少）")
         top_in = day_data.nsmallest(10, "net_flow")[tbl_cols].rename(columns=tbl_rename)
         st.dataframe(top_in, hide_index=True, width="stretch")
+        st.download_button(
+            "⬇ 下載 CSV",
+            top_in.to_csv(index=False, encoding="utf-8-sig"),
+            file_name=f"{year}{holiday_type}_淨流入前10.csv",
+            mime="text/csv",
+            key="dl_in",
+        )
 
     # Flow balance bar chart
     st.divider()
@@ -349,6 +367,12 @@ elif page == "📈  車站 20 年趨勢":
         show = sta_annual[["year", "in_count", "out_count", "net_flow"]].copy()
         show.columns = ["年份", "進站", "出站", "淨流量"]
         st.dataframe(show.set_index("年份"), width="stretch")
+        st.download_button(
+            "⬇ 下載 CSV",
+            show.to_csv(index=False, encoding="utf-8-sig"),
+            file_name=f"{selected_sta}_年度趨勢.csv",
+            mime="text/csv",
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -507,6 +531,14 @@ elif page == "🦠  COVID 衝擊觀察":
         annotation_font_color="#FF8A65",
         line_width=0,
     )
+    # 三級警戒：2021/05/19–07/26（最嚴峻的管制期）
+    fig_timeline.add_vrect(
+        x0="2021-05-19", x1="2021-07-26",
+        fillcolor="#FF1744", opacity=0.28,
+        line_width=1, line_color="#FF6D00", line_dash="dot",
+        annotation_text="三級警戒", annotation_position="top right",
+        annotation_font_color="#FF8A65", annotation_font_size=11,
+    )
 
     fig_timeline.update_layout(
         template="plotly_dark",
@@ -623,6 +655,16 @@ elif page == "🦠  COVID 衝擊觀察":
         )
         st.plotly_chart(fig_keep, width="stretch")
 
+    dl_cols = covid_cmp[["label", "in_2019", "in_2020", "drop_pct"]].rename(
+        columns={"label": "縣市｜車站", "in_2019": "2019進站", "in_2020": "2020進站", "drop_pct": "跌幅(%)"}
+    )
+    st.download_button(
+        "⬇ 下載完整 2019 vs 2020 跌幅資料（CSV）",
+        dl_cols.to_csv(index=False, encoding="utf-8-sig"),
+        file_name="2019vs2020_各站跌幅.csv",
+        mime="text/csv",
+    )
+
     # Recovery tracker
     st.markdown("#### 旅運量恢復追蹤（以 2019 為基準 = 100）")
     ref_year = 2019
@@ -644,6 +686,12 @@ elif page == "🦠  COVID 衝擊觀察":
         fig_idx.add_hline(y=100, line_dash="dash", line_color="white", opacity=0.4,
                           annotation_text=f"{ref_year} 基準")
         fig_idx.add_vrect(x0=2020, x1=2022.5, fillcolor="#FF5722", opacity=0.1, line_width=0)
+        fig_idx.add_vline(
+            x=2021.39,  # ≈ 2021/05/19
+            line_dash="dot", line_color="#FF6D00", line_width=1.5,
+            annotation_text="三級警戒", annotation_position="top right",
+            annotation_font_color="#FF8A65", annotation_font_size=10,
+        )
         fig_idx.update_layout(height=360, margin=dict(l=0, r=0, t=20, b=0),
                                xaxis=dict(dtick=1))
         st.plotly_chart(fig_idx, width="stretch")
