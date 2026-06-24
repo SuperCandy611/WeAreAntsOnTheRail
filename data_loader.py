@@ -264,7 +264,7 @@ def get_daily_national(df: pd.DataFrame) -> pd.DataFrame:
 # ── Color helpers ──────────────────────────────────────────────────────────────
 
 def net_flow_to_rgba(series: pd.Series, alpha: int = 200, quantile: float = 0.95,
-                     max_abs_override: float | None = None) -> list[list[int]]:
+                     max_abs_override=None) -> list[list[int]]:
     """
     Map net_flow → RGBA list.
     net_flow = 進站 - 出站
